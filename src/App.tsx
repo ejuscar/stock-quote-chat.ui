@@ -6,6 +6,12 @@ import React, { useState } from "react";
 import "./App.css";
 import Lobby from "./components/Lobby";
 import Chat from "./components/Chat";
+import { authContext } from "./contexts/auth.context";
+import IUserModel from "./models/user.model";
+import Login from "./components/Login";
+import IRoomModel from "./models/room.model";
+import { getRooms } from "./services/api.service";
+import Room from "./components/Room";
 
 export interface IMessage {
 	user: string;
@@ -15,67 +21,25 @@ export interface IMessage {
 const App = () => {
 	const [connection, setConnection] = useState<HubConnection>();
 	const [messages, setMessages] = useState<IMessage[]>([]);
+	const [user, setUser] = useState<IUserModel | null>(null);
 
-	//prettier-ignore
-	const joinRoom = async (user: string | undefined, room: string | undefined) => {
-    try {
-      // Create connection
-      const connection = new HubConnectionBuilder()
-      .withUrl("https://localhost:7173/chat")
-      .configureLogging(LogLevel.Information)
-      .build();
+	function onSignIn(user: IUserModel) {
+		setUser(user);
+	}
 
-      connection.onclose(e => {
-        setConnection(undefined);
-        setMessages([]);
-      })
-
-      // Setup handlers
-      connection.on("ReceiveMessage", (user, message) => {
-        setMessages(messages => [...messages, {user, message}])
-      })
-
-      // Start connection
-      await connection.start();
-
-      // Invoke joinroom method
-      await connection.invoke("JoinRoom", {user, room});
-      setConnection(connection);
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
-	const closeConnection = async () => {
-		try {
-			await connection?.stop();
-		} catch (error) {
-			console.log(error);
-		}
-	};
-
-	const sendMessage = async (message: string) => {
-		try {
-			await connection?.invoke("SendMessage", message);
-		} catch (error) {
-			console.log(error);
-		}
-	};
+	function onSignOut() {
+		setUser(null);
+		localStorage.removeItem("token");
+	}
 
 	return (
-		<div className="app">
-			<h2>MyChat</h2>
-			<hr className="line" />
-			{!connection ? (
-				<Lobby joinRoom={joinRoom} />
-			) : (
-				<Chat
-					messages={messages}
-					sendMessage={sendMessage}
-					closeConnection={closeConnection}
-				/>
-			)}
-		</div>
+		<authContext.Provider value={{ user, onSignIn, onSignOut }}>
+			<div className="app">
+				<h2>MyChat</h2>
+				<hr className="line" />
+				{!user ? <Login /> : <Lobby />}
+			</div>
+		</authContext.Provider>
 	);
 };
 
