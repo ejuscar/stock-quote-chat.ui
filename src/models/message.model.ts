@@ -5,3 +5,9 @@ export default interface IMessageModel {
 	userId: number;
 	roomId: number;
 }
+
+export interface IChatMessageModel {
+	timestamp: number;
+	message: string;
+	username: string;
+}

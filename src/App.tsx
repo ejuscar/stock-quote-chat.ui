@@ -19,8 +19,6 @@ export interface IMessage {
 }
 
 const App = () => {
-	const [connection, setConnection] = useState<HubConnection>();
-	const [messages, setMessages] = useState<IMessage[]>([]);
 	const [user, setUser] = useState<IUserModel | null>(null);
 
 	function onSignIn(user: IUserModel) {

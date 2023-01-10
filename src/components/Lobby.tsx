@@ -6,6 +6,7 @@ import {
 import { useEffect, useState } from "react";
 import { Button } from "react-bootstrap";
 import { useAuthContext } from "../contexts/auth.context";
+import IMessageModel, { IChatMessageModel } from "../models/message.model";
 import IRoomModel from "../models/room.model";
 import { getRooms } from "../services/api.service";
 import Chat from "./Chat";
@@ -13,15 +14,10 @@ import Room from "./Room";
 
 interface ILobbyProps {}
 
-export interface IMessage {
-	user: string;
-	message: string;
-}
-
 const Lobby = (props: ILobbyProps) => {
 	const [rooms, setRooms] = useState<IRoomModel[]>([]);
 	const [connection, setConnection] = useState<HubConnection>();
-	const [messages, setMessages] = useState<IMessage[]>([]);
+	const [messages, setMessages] = useState<IChatMessageModel[]>([]);
 	const { user, onSignOut } = useAuthContext();
 
 	useEffect(() => {
@@ -50,12 +46,23 @@ const Lobby = (props: ILobbyProps) => {
 			});
 
 			// Setup handlers
-			connection.on("ReceiveMessage", (user, message) => {
-				setMessages((messages) => [
-					...messages.slice(-49),
-					{ user, message },
-				]);
-			});
+			connection.on(
+				"ReceiveMessage",
+				(chatMessageResponse: IChatMessageModel) => {
+					setMessages((messages) =>
+						[...messages, chatMessageResponse]
+							.sort((a, b) => a.timestamp - b.timestamp)
+							.slice(-50)
+					);
+				}
+			);
+
+			connection.on(
+				"LoadMessages",
+				(chatMessages: IChatMessageModel[]) => {
+					setMessages(chatMessages);
+				}
+			);
 
 			// Start connection
 			await connection.start();
