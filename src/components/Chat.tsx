@@ -1,10 +1,10 @@
 import { Button } from "react-bootstrap";
-import { IMessage } from "../App";
+import { IChatMessageModel } from "../models/message.model";
 import MessageContainer from "./MessageContainer";
 import SendMessageForm from "./SendMessageForm";
 
 interface IChatProps {
-	messages: IMessage[];
+	messages: IChatMessageModel[];
 	sendMessage: (message: string) => void;
 	closeConnection: () => void;
 }

@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
-import { IMessage } from "../App";
+import { IChatMessageModel } from "../models/message.model";
 
 interface IMessageContainerProps {
-	messages: IMessage[];
+	messages: IChatMessageModel[];
 }
 
 const MessageContainer = ({ messages }: IMessageContainerProps) => {
@@ -25,7 +25,7 @@ const MessageContainer = ({ messages }: IMessageContainerProps) => {
 			{messages.map((m, index) => (
 				<div key={index} className="user-message">
 					<div className="message bg-primary">{m.message}</div>
-					<div className="from-user">{m.user}</div>
+					<div className="from-user">{m.username}</div>
 				</div>
 			))}
 		</div>

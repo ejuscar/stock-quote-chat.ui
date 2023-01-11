@@ -1,37 +1,115 @@
-import { useState } from "react";
-import { Form } from "react-bootstrap";
-import Button from "react-bootstrap/esm/Button";
+import {
+	HubConnection,
+	HubConnectionBuilder,
+	LogLevel,
+} from "@microsoft/signalr";
+import { useEffect, useState } from "react";
+import { Button } from "react-bootstrap";
+import { useAuthContext } from "../contexts/auth.context";
+import IMessageModel, { IChatMessageModel } from "../models/message.model";
+import IRoomModel from "../models/room.model";
+import { getRooms } from "../services/api.service";
+import Chat from "./Chat";
+import Room from "./Room";
 
-interface ILobbyProps {
-	joinRoom: (user: string | undefined, room: string | undefined) => void;
-}
+interface ILobbyProps {}
 
-const Lobby = ({ joinRoom }: ILobbyProps) => {
-	const [user, setUser] = useState<string>();
-	const [room, setRoom] = useState<string>();
+const Lobby = (props: ILobbyProps) => {
+	const [rooms, setRooms] = useState<IRoomModel[]>([]);
+	const [connection, setConnection] = useState<HubConnection>();
+	const [messages, setMessages] = useState<IChatMessageModel[]>([]);
+	const { user, onSignOut } = useAuthContext();
 
-	return (
-		<Form
-			className="lobby"
-			onSubmit={(e) => {
-				e.preventDefault();
-				joinRoom(user, room);
-			}}
-		>
-			<Form.Group>
-				<Form.Control
-					placeholder="name"
-					onChange={(e) => setUser(e.target.value)}
-				/>
-				<Form.Control
-					placeholder="room"
-					onChange={(e) => setRoom(e.target.value)}
-				/>
-			</Form.Group>
-			<Button variant="success" type="submit" disabled={!user || !room}>
-				Join
-			</Button>
-		</Form>
+	useEffect(() => {
+		getRooms().then((response) => {
+			if (response.success && response.data) setRooms(response.data);
+		});
+	}, []);
+
+	const joinRoom = async (room: IRoomModel) => {
+		try {
+			const token = localStorage.getItem("token")
+				? localStorage.getItem("token")
+				: "";
+
+			// Create connection
+			const connection = new HubConnectionBuilder()
+				.withUrl("https://localhost:7173/chat", {
+					accessTokenFactory: () => token!,
+				})
+				.configureLogging(LogLevel.Information)
+				.build();
+
+			connection.onclose((e) => {
+				setConnection(undefined);
+				setMessages([]);
+			});
+
+			// Setup handlers
+			connection.on(
+				"ReceiveMessage",
+				(chatMessageResponse: IChatMessageModel) => {
+					setMessages((messages) =>
+						[...messages, chatMessageResponse]
+							.sort((a, b) => a.timestamp - b.timestamp)
+							.slice(-50)
+					);
+				}
+			);
+
+			connection.on(
+				"LoadMessages",
+				(chatMessages: IChatMessageModel[]) => {
+					setMessages(chatMessages);
+				}
+			);
+
+			// Start connection
+			await connection.start();
+
+			// Invoke joinroom method
+			await connection.invoke("JoinRoom", { user, room });
+			setConnection(connection);
+		} catch (error) {
+			console.log(error);
+		}
+	};
+
+	const closeConnection = async () => {
+		try {
+			await connection?.stop();
+		} catch (error) {
+			console.log(error);
+		}
+	};
+
+	const sendMessage = async (message: string) => {
+		try {
+			await connection?.invoke("SendMessage", message);
+		} catch (error) {
+			console.log(error);
+		}
+	};
+
+	return !connection ? (
+		<>
+			<div className="leave-room">
+				<Button variant="danger" onClick={() => onSignOut()}>
+					Log Out
+				</Button>
+			</div>
+			<div style={{ display: "flex" }}>
+				{rooms.map((room) => (
+					<Room key={room.id} room={room} joinRoom={joinRoom} />
+				))}
+			</div>
+		</>
+	) : (
+		<Chat
+			messages={messages}
+			sendMessage={sendMessage}
+			closeConnection={closeConnection}
+		/>
 	);
 };
 
